@@ -51,6 +51,8 @@ Changes
   * The lib._distances and lib_distances_openmp libraries now have a
     OPENMP_ENABLED boolean flag which indicates if openmp was used in
     compilation.  (Issue #530)
+  * use scipy.io.netcdf pure python implementation for reading of Amber
+    netcdf3 trajctories instead of netCDF4 + netcdf lib (see also Issue #488)
 
 Fixes
 
