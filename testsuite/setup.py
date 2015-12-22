@@ -113,6 +113,7 @@ For details see the report for `Issue 87`_.
                   'data/Amber/*.trj', 'data/Amber/*.mdcrd',
                   'data/Amber/*.ncdf', 'data/Amber/*.nc',
                   'data/Amber/*.inpcrd',
+                  'data/scipy/*.nc',
                   'data/*.pqr', 'data/*.pdbqt', 'data/*.bz2',
                   'data/*.fasta',
                   'data/*.dms',

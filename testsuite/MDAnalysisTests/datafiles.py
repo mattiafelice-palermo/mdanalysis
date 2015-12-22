@@ -96,6 +96,7 @@ __all__ = [
     "COORDINATES_XYZ",
     "COORDINATES_XYZ_BZ2",
     "Martini_membrane_gro", # for testing the leaflet finder
+    "NC_SCIPY_EXAMPLE",     # test for lib.netcdf == scipy.io.netcdf (v0.16.1)
 ]
 
 from pkg_resources import resource_filename
@@ -183,6 +184,7 @@ INPCRD = resource_filename(__name__, 'data/Amber/test.inpcrd')
 TRJ_bz2 = resource_filename(__name__, 'data/Amber/ache.mdcrd.bz2')
 PFncdf_Top = resource_filename(__name__, 'data/Amber/posfor.top')
 PFncdf_Trj = resource_filename(__name__, 'data/Amber/posfor.ncdf')
+NC_SCIPY_EXAMPLE = resource_filename(__name__, 'data/scipy/example_1.nc')
 
 PRMpbc = resource_filename(__name__, 'data/Amber/capped-ala.prmtop')
 TRJpbc_bz2 = resource_filename(__name__, 'data/Amber/capped-ala.mdcrd.bz2')
