@@ -56,7 +56,22 @@ def unique(ag):
         return ag
 
 
-class AllSelection(object):
+_CLASSDICT = {}
+
+
+class Selection(object):
+    class __metaclass__(type):
+        def __init__(cls, name, bases, dict):
+            type.__init__(type, name, bases, dict)
+            try:
+                _CLASSDICT[dict['token']] = cls
+            except KeyError:
+                pass
+
+
+class AllSelection(Selection):
+    token = 'all'
+
     def __init__(self, parser, tokens):
         pass
 
@@ -64,13 +79,14 @@ class AllSelection(object):
         return unique(group[:])
 
 
-class UnarySelection(object):
+class UnarySelection(Selection):
     def __init__(self, parser, tokens):
         sel = parser.parse_expression(self.precedence)
         self.sel = sel
 
 
 class NotSelection(UnarySelection):
+    token = 'not'
     precedence = 5
 
     def apply(self, group):
@@ -79,6 +95,7 @@ class NotSelection(UnarySelection):
 
 
 class GlobalSelection(UnarySelection):
+    token = 'global'
     precedence = 5
 
     def apply(self, group):
@@ -86,6 +103,7 @@ class GlobalSelection(UnarySelection):
 
 
 class ByResSelection(UnarySelection):
+    token = 'byres'
     precedence = 1
 
     def apply(self, group):
@@ -127,7 +145,7 @@ class OrOperation(LogicOperation):
         return group.universe.atoms[idx]
 
 
-class DistanceSelection(object):
+class DistanceSelection(Selection):
     """Base class for distance search based selections
 
     Grabs the flags for this selection
@@ -151,6 +169,7 @@ class DistanceSelection(object):
 
 
 class AroundSelection(DistanceSelection):
+    token = 'around'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -204,6 +223,7 @@ class AroundSelection(DistanceSelection):
 
 
 class SphericalLayerSelection(DistanceSelection):
+    token = 'sphlayer'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -243,6 +263,7 @@ class SphericalLayerSelection(DistanceSelection):
 
 
 class SphericalZoneSelection(DistanceSelection):
+    token = 'sphzone'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -276,7 +297,7 @@ class SphericalZoneSelection(DistanceSelection):
         return unique(group[idx])
 
 
-class CylindricalSelection(object):
+class CylindricalSelection(Selection):
     def __init__(self):
         self.periodic = flags['use_periodic_selections']
 
@@ -338,6 +359,7 @@ class CylindricalSelection(object):
 
 
 class CylindricalZoneSelection(CylindricalSelection):
+    token = 'cyzone'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -349,6 +371,7 @@ class CylindricalZoneSelection(CylindricalSelection):
 
 
 class CylindricalLayerSelection(CylindricalSelection):
+    token = 'cylayer'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -361,6 +384,8 @@ class CylindricalLayerSelection(CylindricalSelection):
 
 
 class PointSelection(DistanceSelection):
+    token = 'point'
+
     def __init__(self, parser, tokens):
         super(PointSelection, self).__init__()
         x = float(tokens.popleft())
@@ -388,7 +413,9 @@ class PointSelection(DistanceSelection):
         return unique(group[mask])
 
 
-class AtomSelection(object):
+class AtomSelection(Selection):
+    token = 'atom'
+
     def __init__(self, parser, tokens):
         self.segid = tokens.popleft()
         self.resid = int(tokens.popleft())
@@ -401,7 +428,8 @@ class AtomSelection(object):
         return unique(sub)
 
 
-class BondedSelection(object):
+class BondedSelection(Selection):
+    token = 'bonded'
     precedence = 1
 
     def __init__(self, parser, tokens):
@@ -430,7 +458,9 @@ class BondedSelection(object):
         return group.universe.atoms[np.unique(idx)]
 
 
-class SelgroupSelection(object):
+class SelgroupSelection(Selection):
+    token = 'group'
+
     def __init__(self, parser, tokens):
         grpname = tokens.popleft()
         self.grp = parser.selgroups[grpname]
@@ -441,7 +471,9 @@ class SelgroupSelection(object):
 
 
 @deprecate(old_name='fullgroup', new_name='global group')
-class FullSelgroupSelection(object):
+class FullSelgroupSelection(Selection):
+    token = 'fullgroup'
+
     def __init__(self, parser, tokens):
         grpname = tokens.popleft()
         self.grp = parser.selgroups[grpname]
@@ -450,18 +482,17 @@ class FullSelgroupSelection(object):
         return unique(self.grp)
 
 
-class StringSelection(object):
+class StringSelection(Selection):
     """Selections based on text attributes
 
     Supports the use of wildcards at the end of strings
     """
+    badtokens = {'(', ')', 'and', 'or', 'not', 'segid', 'resid', 'resname'
+                 'name', 'type'}
+
     def __init__(self, parser, tokens):
         data = tokens.popleft()
-        if data in {
-                parser.LPAREN, parser.RPAREN,
-                parser.AND, parser.OR, parser.NOT,
-                parser.SEGID, parser.RESID, parser.RESNAME,
-                parser.NAME, parser.TYPE}:
+        if data in self.badtokens:
             raise ValueError("Unexpected token: {}".format(data))
 
         self.val = data
@@ -479,30 +510,35 @@ class StringSelection(object):
 
 class AtomNameSelection(StringSelection):
     """Select atoms based on 'names' attribute"""
+    token = 'name'
     field = 'names'
 
 
 class AtomTypeSelection(StringSelection):
     """Select atoms based on 'types' attribute"""
+    token = 'type'
     field = 'types'
 
 
 class ResidueNameSelection(StringSelection):
     """Select atoms based on 'resnames' attribute"""
+    token = 'resname'
     field = 'resnames'
 
 
 class SegmentNameSelection(StringSelection):
     """Select atoms based on 'segids' attribute"""
+    token = 'segid'
     field = 'segids'
 
 
 class AltlocSelection(StringSelection):
     """Select atoms based on 'altLoc' attribute"""
+    token = 'altloc'
     field = 'altLocs'
 
 
-class RangeSelection(object):
+class RangeSelection(Selection):
     """Select atoms based on numerical fields
 
     Allows the use of ':' and '-' to specify a range of values
@@ -537,14 +573,18 @@ class RangeSelection(object):
 
 
 class ResidueIDSelection(RangeSelection):
+    token = 'resid'
     field = 'resids'
 
 
 class ResnumSelection(RangeSelection):
+    token = 'resnum'
     field = 'resnums'
 
 
 class ByNumSelection(RangeSelection):
+    token = 'bynum'
+
     def apply(self, group):
         # In this case we'll use 1 indexing since that's what the
         # user will be familiar with
@@ -557,7 +597,7 @@ class ByNumSelection(RangeSelection):
         return unique(group[mask])
 
 
-class ProteinSelection(object):
+class ProteinSelection(Selection):
     """Consists of all residues with  recognized residue names.
 
     Recognized residue names in :attr:`ProteinSelection.prot_res`.
@@ -571,6 +611,8 @@ class ProteinSelection(object):
 
     .. SeeAlso:: :func:`MDAnalysis.lib.util.convert_aa_code`
     """
+    token = 'protein'
+
     prot_res = np.array([
         # CHARMM top_all27_prot_lipid.rtf
         'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HSD',
@@ -599,7 +641,7 @@ class ProteinSelection(object):
         return unique(group[mask])
 
 
-class NucleicSelection(object):
+class NucleicSelection(Selection):
     """All atoms in nucleic acid residues with recognized residue names.
 
     Recognized residue names:
@@ -612,6 +654,8 @@ class NucleicSelection(object):
     .. versionchanged:: 0.8
        additional Gromacs selections
     """
+    token = 'nucleic'
+
     nucl_res = np.array([
         'ADE', 'URA', 'CYT', 'GUA', 'THY', 'DA', 'DC', 'DG', 'DT', 'RA',
         'RU', 'RG', 'RC', 'A', 'T', 'U', 'C', 'G'
@@ -631,6 +675,7 @@ class BackboneSelection(ProteinSelection):
     This excludes OT* on C-termini
     (which are included by, eg VMD's backbone selection).
     """
+    token = 'backbone'
     bb_atoms = np.array(['N', 'CA', 'C', 'O'])
 
     def apply(self, group):
@@ -645,6 +690,7 @@ class NucleicBackboneSelection(NucleicSelection):
     These atoms are only recognized if they are in a residue matched
     by the :class:`NucleicSelection`.
     """
+    token = 'nucleicbackbone'
     bb_atoms = np.array(["P", "C5'", "C3'", "O3'", "O5'"])
 
     def apply(self, group):
@@ -661,6 +707,7 @@ class BaseSelection(NucleicSelection):
      'N9', 'N7', 'C8', 'C5', 'C4', 'N3', 'C2', 'N1', 'C6',
      'O6','N2','N6', 'O2','N4','O4','C5M'
     """
+    token = 'nucleicbase'
     base_atoms = np.array([
         'N9', 'N7', 'C8', 'C5', 'C4', 'N3', 'C2', 'N1', 'C6',
         'O6', 'N2', 'N6',
@@ -675,6 +722,7 @@ class BaseSelection(NucleicSelection):
 class NucleicSugarSelection(NucleicSelection):
     """Contains all atoms with name C1', C2', C3', C4', O2', O4', O3'.
     """
+    token = 'nucleicsugar'
     sug_atoms = np.array(["C1'", "C2'", "C3'", "C4'", "O4'"])
 
     def apply(self, group):
@@ -683,10 +731,11 @@ class NucleicSugarSelection(NucleicSelection):
         return unique(group[mask])
 
 
-class PropertySelection(object):
+class PropertySelection(Selection):
     """Some of the possible properties:
     x, y, z, radius, mass,
     """
+    token = 'prop'
     ops = dict([
         ('>', np.greater),
         ('<', np.less),
@@ -736,7 +785,8 @@ class PropertySelection(object):
         return unique(group[mask])
 
 
-class SameSelection(object):
+class SameSelection(Selection):
+    token = 'same'
     precedence = 1
 
     prop_trans = {
@@ -827,40 +877,10 @@ class SelectionParser(object):
    """
 
     #Here are the symbolic tokens that we'll process:
-    ALL = 'all'
-    NOT = 'not'
-    AND = 'and'
-    OR = 'or'
-    AROUND = 'around'
-    SPHLAYER = 'sphlayer'
-    SPHZONE = 'sphzone'
-    CYLAYER = 'cylayer'
-    CYZONE = 'cyzone'
-    POINT = 'point'
-    BONDED = 'bonded'
-    BYRES = 'byres'
-    BYNUM = 'bynum'
-    PROP = 'prop'
-    ATOM = 'atom'
     LPAREN = '('
     RPAREN = ')'
-    SEGID = 'segid'
-    ALTLOC = 'altloc'
-    RESID = 'resid'
-    RESNUM = 'resnum'
-    RESNAME = 'resname'
-    NAME = 'name'
-    TYPE = 'type'
-    PROTEIN = 'protein'
-    NUCLEIC = 'nucleic'
-    BB = 'backbone'
-    NBB = 'nucleicbackbone'
-    BASE = 'nucleicbase'
-    SUGAR = 'nucleicsugar'
-    SAME = 'same'
-    GLOBAL = 'global'
-    SELGROUP = 'group'
-    FULLSELGROUP = 'fullgroup'
+    AND = 'and'
+    OR = 'or'
 
     operations = dict([
         (AND, AndOperation),
@@ -869,38 +889,6 @@ class SelectionParser(object):
     op_precedence = dict([
          (AND, 3),
          (OR, 3),
-    ])
-    classdict = dict([
-        (ALL, AllSelection),
-        (NOT, NotSelection),
-        (BONDED, BondedSelection),
-        (SEGID, SegmentNameSelection),
-        (RESID, ResidueIDSelection),
-        (RESNUM, ResnumSelection),
-        (RESNAME, ResidueNameSelection),
-        (NAME, AtomNameSelection),
-        (ALTLOC, AltlocSelection),
-        (TYPE, AtomTypeSelection),
-        (BYRES, ByResSelection),
-        (BYNUM, ByNumSelection),
-        (PROP, PropertySelection),
-        (AROUND, AroundSelection),
-        (SPHLAYER, SphericalLayerSelection),
-        (SPHZONE, SphericalZoneSelection),
-        (CYLAYER, CylindricalLayerSelection),
-        (CYZONE, CylindricalZoneSelection),
-        (POINT, PointSelection),
-        (NUCLEIC, NucleicSelection),
-        (PROTEIN, ProteinSelection),
-        (BB, BackboneSelection),
-        (NBB, NucleicBackboneSelection),
-        (BASE, BaseSelection),
-        (SUGAR, NucleicSugarSelection),
-        (ATOM, AtomSelection),
-        (SELGROUP, SelgroupSelection),
-        (FULLSELGROUP, FullSelgroupSelection),
-        (SAME, SameSelection),
-        (GLOBAL, GlobalSelection),
     ])
 
     # Borg pattern: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/66531
@@ -970,7 +958,7 @@ class SelectionParser(object):
             return exp
 
         try:
-            return self.classdict[op](self, self.tokens)
+            return _CLASSDICT[op](self, self.tokens)
         except KeyError:
             raise SelectionError("Unknown selection token: '{0}'".format(op))
         except ValueError as e:
